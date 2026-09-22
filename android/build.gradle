@@ -41,7 +41,8 @@ android {
         main.java.srcDirs += 'src/main/kotlin'
     }
     defaultConfig {
-        compileSdk 37
+        // Keep the plugin compatible with the app's installed Android SDK.
+        compileSdk 36
         minSdkVersion 21
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }

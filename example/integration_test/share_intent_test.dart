@@ -67,7 +67,14 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
 
     // Listen before the share arrives: the plugin only delivers to a listener.
-    final it = StreamIterator(ReceiveSharingIntent.instance.getMediaStream());
+    // Subscribe now, not at the first moveNext: the plugin delivers only to a
+    // listener that exists when the share arrives. The controller buffers.
+    final buffered = StreamController<List<SharedMediaFile>>();
+    final sub = ReceiveSharingIntent.instance.getMediaStream().listen(
+      buffered.add,
+      onError: buffered.addError,
+    );
+    final it = StreamIterator(buffered.stream);
     // The event channel's listen is asynchronous on the platform side.
     await Future<void>.delayed(const Duration(seconds: 2));
 
@@ -124,6 +131,8 @@ void main() {
     mark('DONE stream');
 
     await it.cancel();
+    await sub.cancel();
+    await buffered.close();
 
     await ReceiveSharingIntent.instance.reset();
     final afterReset = await ReceiveSharingIntent.instance.getInitialMedia();

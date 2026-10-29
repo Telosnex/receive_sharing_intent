@@ -83,6 +83,7 @@ void main() {
           },
         ]),
       );
+      expect(text, contains('handled=true'), reason: text);
       final textEvent = await nextEvent(it);
       expect(textEvent.length, 1, reason: text);
       expect(textEvent.single.type, SharedMediaType.text);
@@ -94,6 +95,7 @@ void main() {
             {'path': 'file://$path', 'type': 'image', 'mimeType': 'image/png'},
         ]),
       );
+      expect(images, contains('handled=true'), reason: images);
       final imageEvent = await nextEvent(it);
       expect(imageEvent.length, 2, reason: images);
       for (var i = 0; i < 2; i++) {

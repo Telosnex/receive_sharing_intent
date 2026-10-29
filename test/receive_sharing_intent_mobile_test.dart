@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -25,16 +26,17 @@ void main() {
       SharedMediaFile(path: 'path1', type: SharedMediaType.image),
       SharedMediaFile(path: 'path2', type: SharedMediaType.video),
     ];
-    final json =
-        jsonEncode(expectedMediaFiles.map((file) => file.toMap()).toList());
+    final json = jsonEncode(
+      expectedMediaFiles.map((file) => file.toMap()).toList(),
+    );
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(methodChannel, (methodCall) async {
-      if (methodCall.method == 'getInitialMedia') {
-        return json;
-      }
-      return null;
-    });
+          if (methodCall.method == 'getInitialMedia') {
+            return json;
+          }
+          return null;
+        });
 
     final mediaFiles = await instance.getInitialMedia();
     expect(mediaFiles.length, expectedMediaFiles.length);
@@ -49,19 +51,20 @@ void main() {
       SharedMediaFile(path: 'path1', type: SharedMediaType.image),
       SharedMediaFile(path: 'path2', type: SharedMediaType.video),
     ];
-    final json =
-        jsonEncode(expectedMediaFiles.map((file) => file.toMap()).toList());
+    final json = jsonEncode(
+      expectedMediaFiles.map((file) => file.toMap()).toList(),
+    );
 
     final streamController = StreamController<String?>.broadcast();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockStreamHandler(
-      eventChannel,
-      MockStreamHandler.inline(
-        onListen: (args, events) {
-          streamController.stream.listen(events.success);
-        },
-      ),
-    );
+          eventChannel,
+          MockStreamHandler.inline(
+            onListen: (args, events) {
+              streamController.stream.listen(events.success);
+            },
+          ),
+        );
 
     final emittedMediaFiles = <List<SharedMediaFile>>[];
     final subscription = instance.getMediaStream().listen((event) {
@@ -86,11 +89,11 @@ void main() {
   test('reset', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(methodChannel, (methodCall) async {
-      if (methodCall.method == 'reset') {
-        return null;
-      }
-      return null;
-    });
+          if (methodCall.method == 'reset') {
+            return null;
+          }
+          return null;
+        });
 
     await instance.reset();
 

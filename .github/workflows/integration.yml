@@ -1,0 +1,118 @@
+name: Integration
+
+on:
+  push:
+    # ci/** branches run it too: a new workflow cannot be started by hand
+    # before it is on the default branch.
+    branches: [master, 'ci/**']
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # The example app's integration_test on the Android emulator. The test
+  # waits for marker lines; this job sends it real share intents with adb
+  # (ACTION_SEND, then ACTION_SEND_MULTIPLE) while the app is running.
+  android:
+    name: Android x64 emulator
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Telosnex/telosnex_ci_tools/actions/setup-flutter@cba77fc0d4330f1bef81193c53cd7dd976f0ebcf # v0.5.3
+      - run: flutter pub get
+        working-directory: example
+      - uses: Telosnex/telosnex_ci_tools/actions/android-emulator@cba77fc0d4330f1bef81193c53cd7dd976f0ebcf # v0.5.3
+        id: emulator
+      # Gradle and Kotlin daemons would stay after the app build and hold
+      # memory next to the emulator.
+      - name: No Gradle or Kotlin daemons
+        run: |
+          mkdir -p ~/.gradle
+          printf 'org.gradle.daemon=false\nkotlin.compiler.execution.strategy=in-process\n' >> ~/.gradle/gradle.properties
+      - name: Share intents to the running app
+        working-directory: example
+        env:
+          SERIAL: ${{ steps.emulator.outputs.serial }}
+          LOG: ${{ runner.temp }}/share-test.log
+        run: |
+          app=com.kasem.receive_sharing_intent_example
+          flutter test integration_test/share_intent_test.dart -d "$SERIAL" -r expanded > "$LOG" 2>&1 &
+          pid=$!
+          # Waits for the test's marker line; fails when flutter test ends first.
+          wait_for() {
+            for _ in $(seq 1 450); do
+              if grep -q "RSI_MARK $1" "$LOG"; then return 0; fi
+              if ! kill -0 "$pid" 2> /dev/null; then break; fi
+              sleep 2
+            done
+            echo "::error::flutter test did not reach '$1'."
+            cat "$LOG"
+            return 1
+          }
+          # Sends an intent; am prints "Error:" (exit 0) for a missing activity.
+          send() {
+            out=$(adb -s "$SERIAL" shell am start -n "$app/.MainActivity" "$@" 2>&1)
+            echo "$out"
+            if grep -q 'Error' <<< "$out"; then return 1; fi
+          }
+          adb -s "$SERIAL" shell 'mkdir -p /sdcard/Download; echo one > /sdcard/Download/rsi-ci-1.png; echo two > /sdcard/Download/rsi-ci-2.png'
+          wait_for 'READY text' || exit 1
+          send -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT rsi-ci-text || exit 1
+          wait_for 'READY images' || exit 1
+          send -a android.intent.action.SEND_MULTIPLE -t 'image/*' \
+            --eu android.intent.extra.STREAM \
+            file:///sdcard/Download/rsi-ci-1.png,file:///sdcard/Download/rsi-ci-2.png || exit 1
+          status=0
+          wait "$pid" || status=$?
+          cat "$LOG"
+          exit "$status"
+      - if: failure() || cancelled()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-emulator-logs
+          # The emulator's own log and logcat: why a device went offline.
+          path: |
+            ${{ steps.emulator.outputs.log }}
+            ${{ steps.emulator.outputs.logcat }}
+          if-no-files-found: ignore
+
+  # The same test on the simulator. There is no share sheet or extension UI
+  # there: the test asks the example app's native side to write the share
+  # payload into the app group and to open the plugin's ShareMedia URL.
+  ios:
+    name: iOS ARM64 simulator
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Telosnex/telosnex_ci_tools/actions/setup-flutter@cba77fc0d4330f1bef81193c53cd7dd976f0ebcf # v0.5.3
+      - run: flutter pub get
+        working-directory: example
+      - uses: Telosnex/telosnex_ci_tools/actions/ios-simulator-boot@cba77fc0d4330f1bef81193c53cd7dd976f0ebcf # v0.5.3
+        id: simulator
+      # One target: no build ahead (flutter build ios --simulator), flutter
+      # test builds for the simulator's destination.
+      - uses: Telosnex/telosnex_ci_tools/actions/ios-flutter-test@cba77fc0d4330f1bef81193c53cd7dd976f0ebcf # v0.5.3
+        with:
+          working-directory: example
+          target: integration_test/share_intent_test.dart
+          udid: ${{ steps.simulator.outputs.udid }}
+          artifact-name: ios-simulator-logs
+          # The Xcode build is silent for minutes.
+          idle-minutes: '15'

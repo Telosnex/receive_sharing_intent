@@ -23,7 +23,8 @@ defaults:
 jobs:
   # The example app's integration_test on the Android emulator. The test
   # waits for marker lines; this job sends it real share intents with adb
-  # (ACTION_SEND, then ACTION_SEND_MULTIPLE) while the app is running.
+  # (ACTION_SEND for text, then ACTION_SEND for one image) while the app is
+  # running. ACTION_SEND_MULTIPLE is not sent: am cannot build its list.
   android:
     name: Android x64 emulator
     runs-on: ubuntu-24.04
@@ -75,9 +76,8 @@ jobs:
           wait_for 'READY text' || exit 1
           send -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT rsi-ci-text || exit 1
           wait_for 'READY images' || exit 1
-          send -a android.intent.action.SEND_MULTIPLE -t 'image/*' \
-            --eu android.intent.extra.STREAM \
-            file:///sdcard/Download/rsi-ci-1.png,file:///sdcard/Download/rsi-ci-2.png || exit 1
+          send -a android.intent.action.SEND -t image/png \
+            --eu android.intent.extra.STREAM file:///sdcard/Download/rsi-ci-1.png || exit 1
           status=0
           wait "$pid" || status=$?
           cat "$LOG"

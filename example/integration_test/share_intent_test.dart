@@ -35,6 +35,16 @@ void mark(String line) {
   print('RSI_MARK $line');
 }
 
+/// Hands [payload] to the example app's native side, which writes it into the
+/// app group and opens the plugin with the share URL. Returns its report.
+Future<String> _iosShare(String payload) async {
+  final report = await _iosTestChannel.invokeMethod<String>(
+    'shareJson',
+    payload,
+  );
+  return report ?? 'no report';
+}
+
 /// Reads the next event of [it], failing after two minutes.
 Future<List<SharedMediaFile>> nextEvent(
   StreamIterator<List<SharedMediaFile>> it,
@@ -62,8 +72,9 @@ void main() {
     await Future<void>.delayed(const Duration(seconds: 2));
 
     if (Platform.isIOS) {
-      await _iosTestChannel.invokeMethod<bool>(
-        'shareJson',
+      // The native side returns what it did (print does not reach the CI log
+      // on iOS), so a failed expectation shows it.
+      final text = await _iosShare(
         jsonEncode([
           {
             'path': androidTextPayload,
@@ -72,27 +83,28 @@ void main() {
           },
         ]),
       );
-      final text = await nextEvent(it);
-      expect(text.length, 1);
-      expect(text.single.type, SharedMediaType.text);
-      expect(text.single.path, androidTextPayload);
+      final textEvent = await nextEvent(it);
+      expect(textEvent.length, 1, reason: text);
+      expect(textEvent.single.type, SharedMediaType.text);
+      expect(textEvent.single.path, androidTextPayload);
 
-      await _iosTestChannel.invokeMethod<bool>(
-        'shareJson',
+      final images = await _iosShare(
         jsonEncode([
           for (final path in androidImagePaths)
             {'path': 'file://$path', 'type': 'image', 'mimeType': 'image/png'},
         ]),
       );
-      final images = await nextEvent(it);
-      expect(images.length, 2);
+      final imageEvent = await nextEvent(it);
+      expect(imageEvent.length, 2, reason: images);
       for (var i = 0; i < 2; i++) {
-        expect(images[i].type, SharedMediaType.image);
-        expect(images[i].path, androidImagePaths[i]);
+        expect(imageEvent[i].type, SharedMediaType.image);
+        expect(imageEvent[i].path, androidImagePaths[i]);
       }
     } else {
-      // Android: the driver sends ACTION_SEND (text), then
-      // ACTION_SEND_MULTIPLE (two images), once each is announced.
+      // Android: the driver sends ACTION_SEND (text), then ACTION_SEND with
+      // one image, once each is announced. ACTION_SEND_MULTIPLE is not sent:
+      // `am start --eu` passes EXTRA_STREAM as one Uri, not the ArrayList<Uri>
+      // a multi-share carries (logcat: "expected ArrayList<Uri>").
       mark('READY text');
       final text = await nextEvent(it);
       expect(text.length, 1);
@@ -102,11 +114,10 @@ void main() {
 
       mark('READY images');
       final images = await nextEvent(it);
-      expect(images.length, 2);
-      for (var i = 0; i < 2; i++) {
-        expect(images[i].type, SharedMediaType.image);
-        expect(images[i].path, androidImagePaths[i]);
-      }
+      expect(images.length, 1);
+      expect(images.single.type, SharedMediaType.image);
+      expect(images.single.path, androidImagePaths.first);
+      expect(images.single.mimeType, 'image/png');
     }
     mark('DONE stream');
 

@@ -40,6 +40,8 @@ import receive_sharing_intent
             defaults.synchronize()
             let handled = ReceiveSharingIntentPlugin.instance.application(
                 UIApplication.shared, open: url, options: [:])
+            // Diagnostics for CI: what the plugin was given and whether it handled it.
+            print("RSI_NATIVE group=\(groupId) url=\(url) handled=\(handled) bytes=\(data.count) readback=\(defaults.data(forKey: "ShareKey")?.count ?? -1)")
             result(handled)
         }
     }

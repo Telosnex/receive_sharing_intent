@@ -42,7 +42,9 @@ jobs:
       - name: No Gradle or Kotlin daemons
         run: |
           mkdir -p ~/.gradle
-          printf 'org.gradle.daemon=false\nkotlin.compiler.execution.strategy=in-process\n' >> ~/.gradle/gradle.properties
+          # The Jetifier ran out of heap ("Java heap space") on the default
+          # 512 MB of the Gradle JVM.
+          printf 'org.gradle.daemon=false\nkotlin.compiler.execution.strategy=in-process\norg.gradle.jvmargs=-Xmx5g -XX:MaxMetaspaceSize=1g\n' >> ~/.gradle/gradle.properties
       - name: Share intents to the running app
         working-directory: example
         env:

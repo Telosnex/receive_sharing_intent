@@ -33,10 +33,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: Telosnex/telosnex_ci_tools/actions/setup-flutter@bba81d85dab7716cc288df9877812dd3299ff11e # v0.5.14
+      - uses: Telosnex/telosnex_ci_tools/actions/setup-flutter@f97b50830596a30b24ea34c643a3b7dcce349972 # v0.5.15
       - run: flutter pub get
         working-directory: example
-      - uses: Telosnex/telosnex_ci_tools/actions/android-emulator@bba81d85dab7716cc288df9877812dd3299ff11e # v0.5.14
+      - uses: Telosnex/telosnex_ci_tools/actions/android-emulator@f97b50830596a30b24ea34c643a3b7dcce349972 # v0.5.15
         id: emulator
       # Gradle and Kotlin daemons would stay after the app build and hold
       # memory next to the emulator.
@@ -103,14 +103,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: Telosnex/telosnex_ci_tools/actions/setup-flutter@bba81d85dab7716cc288df9877812dd3299ff11e # v0.5.14
+      - uses: Telosnex/telosnex_ci_tools/actions/setup-flutter@f97b50830596a30b24ea34c643a3b7dcce349972 # v0.5.15
       - run: flutter pub get
         working-directory: example
-      - uses: Telosnex/telosnex_ci_tools/actions/ios-simulator-boot@bba81d85dab7716cc288df9877812dd3299ff11e # v0.5.14
+      - uses: Telosnex/telosnex_ci_tools/actions/ios-simulator-boot@f97b50830596a30b24ea34c643a3b7dcce349972 # v0.5.15
         id: simulator
       # One target: no build ahead (flutter build ios --simulator), flutter
       # test builds for the simulator's destination.
-      - uses: Telosnex/telosnex_ci_tools/actions/ios-flutter-test@bba81d85dab7716cc288df9877812dd3299ff11e # v0.5.14
+      - uses: Telosnex/telosnex_ci_tools/actions/ios-flutter-test@f97b50830596a30b24ea34c643a3b7dcce349972 # v0.5.15
         with:
           working-directory: example
           target: integration_test/share_intent_test.dart

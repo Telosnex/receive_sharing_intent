@@ -1,3 +1,5 @@
+// Keep this example compatible with older Flutter SDKs.
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
 import 'dart:async';
